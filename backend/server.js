@@ -1,58 +1,57 @@
-const express = require("express")
-const cors = require("cors")
-const bodyParser = require("body-parser")
-const sequelize = require("./config/database")
-const stockRoutes = require("./routes/stockRoutes")
-const userRoutes = require("./routes/userRoutes")
-const portfolioRoutes = require("./routes/portfolioRoutes")
-const transactionRoutes = require("./routes/transactionRoutes")
-const wishlistRoutes = require("./routes/wishlistRoutes")
-const orderRoutes = require("./routes/orderRoutes")
-const newsRoutes = require("./routes/newsRoutes")
-const notificationRoutes = require("./routes/notificationRoutes")
-const apiLogRoutes = require("./routes/apiLogRoutes")
-const marketTrendRoutes = require("./routes/marketTrendRoutes")
-const riskAnalysisRoutes = require("./routes/riskAnalysisRoutes")
-const fetchStockData = require("./services/stockDataService")
+const express = require("express");
+const cors = require("cors");
+const bodyParser = require("body-parser");
+const sequelize = require("./config/database");
+const stockDataService = require("./services/stockDataService");
 
-const app = express()
-const PORT = process.env.PORT || 5000
+// Import all models to ensure they are registered with Sequelize
+require("./models/User");
+require("./models/Stock");
+require("./models/userPortfolio");
+require("./models/Transaction");
+require("./models/wishlist");
+require("./models/order");
+require("./models/admin");
+require("./models/tradingSession");
+require("./models/marketNews");
+require("./models/MarketTrend");
+require("./models/StockPriceHistory");
+require("./models/riskAnalysis");
+require("./models/ApiLog");
+
+const app = express();
+const port = 5000;
 
 // Middleware
-app.use(cors())
-app.use(bodyParser.json())
-app.use(bodyParser.urlencoded({ extended: true }))
+app.use(cors());
+app.use(bodyParser.json());
 
-// Routes
-app.use("/api/stocks", stockRoutes)
-app.use("/api/users", userRoutes)
-app.use("/api/portfolio", portfolioRoutes)
-app.use("/api/transactions", transactionRoutes)
-app.use("/api/wishlist", wishlistRoutes)
-app.use("/api/orders", orderRoutes)
-app.use("/api/news", newsRoutes)
-app.use("/api/notifications", notificationRoutes)
-app.use("/api/logs", apiLogRoutes)
-app.use("/api/trends", marketTrendRoutes)
-app.use("/api/risk", riskAnalysisRoutes)
+// Test route
+app.get("/", (req, res) => {
+  res.send("Stock Trading API is running");
+});
 
-// Database sync and server start
-// Database sync and server start
+// Sync database and start server
 async function startServer() {
   try {
-    // Sync all models with database
-    await sequelize.sync({ alter: false })  // <-- Change this line from true to false
-    console.log("Database synchronized successfully")
+    console.log("Attempting to connect to the database...");
+    await sequelize.authenticate();
+    console.log("✅ Connection to the database has been established successfully.");
 
-    // Start scheduled job to fetch stock data
-    fetchStockData.scheduleStockDataFetch()
+    console.log("Synchronizing database (force: true)...");
+    await sequelize.sync({ force: true }); // Drops and recreates all tables
+    console.log("✅ Database synchronized successfully");
 
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`)
-    })
+    console.log("Scheduling stock data fetch...");
+    stockDataService.scheduleStockDataFetch();
+
+    app.listen(port, () => {
+      console.log(`✅ Server is running on port ${port}`);
+    });
   } catch (error) {
-    console.error("Unable to start server:", error)
+    console.error("Unable to start server:", error);
+    process.exit(1);
   }
 }
 
-startServer()
+startServer();

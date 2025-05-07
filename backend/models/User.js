@@ -1,14 +1,14 @@
-const { DataTypes } = require("sequelize")
-const sequelize = require("../config/database")
+const { DataTypes, Model } = require("sequelize");
+const sequelize = require("../config/database");
 
-const User = sequelize.define(
-  "User",
+class User extends Model {}
+
+User.init(
   {
     UserID: {
-      type: DataTypes.INTEGER.UNSIGNED,
+      type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
-      allowNull: false,
     },
     FirstName: {
       type: DataTypes.STRING(255),
@@ -31,14 +31,19 @@ const User = sequelize.define(
       allowNull: false,
     },
     UserType: {
-      type: DataTypes.ENUM("Trader", "Investor", "Admin"),
+      type: DataTypes.STRING(20),
       allowNull: false,
       defaultValue: "Trader",
+      validate: {
+        isIn: {
+          args: [["Trader", "Admin"]],
+          msg: "UserType must be 'Trader' or 'Admin'",
+        },
+      },
     },
     AccountBalance: {
-      type: DataTypes.DOUBLE,
+      type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
-      defaultValue: 0.0,
     },
     Account_Creation_Date: {
       type: DataTypes.DATE,
@@ -46,15 +51,16 @@ const User = sequelize.define(
       defaultValue: DataTypes.NOW,
     },
     Updation_In_Profile: {
-      type: DataTypes.DATE,
+      type: DataTypes.DATEONLY,
       allowNull: false,
-      defaultValue: DataTypes.NOW,
     },
   },
   {
+    sequelize,
+    modelName: "User",
     tableName: "User_Table",
     timestamps: false,
-  },
-)
+  }
+);
 
-module.exports = User
+module.exports = User;

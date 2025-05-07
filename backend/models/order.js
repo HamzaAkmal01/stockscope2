@@ -1,12 +1,12 @@
 const { DataTypes, Model } = require("sequelize");
 const sequelize = require("../config/database");
 
-class Transaction extends Model {}
+class Order extends Model {}
 
-Transaction.init(
+Order.init(
   {
-    Transaction_ID: {
-      type: DataTypes.INTEGER,
+    Order_ID: {
+      type: DataTypes.BIGINT,
       primaryKey: true,
       autoIncrement: true,
     },
@@ -26,42 +26,52 @@ Transaction.init(
         key: "StockID",
       },
     },
-    Transaction_Type: {
-      type: DataTypes.STRING(10),
+    Order_Type: {
+      type: DataTypes.STRING(20),
       allowNull: false,
       validate: {
         isIn: {
-          args: [["Buy", "Sell"]],
-          msg: "Transaction_Type must be 'Buy' or 'Sell'",
+          args: [["Limit", "Market", "Stop"]],
+          msg: "Order_Type must be 'Limit', 'Market', or 'Stop'",
         },
       },
     },
-    Price_Per_Share: {
+    Order_Status: {
+      type: DataTypes.STRING(20),
+      allowNull: false,
+      validate: {
+        isIn: {
+          args: [["Pending", "Executed", "Cancelled"]],
+          msg: "Order_Status must be 'Pending', 'Executed', or 'Cancelled'",
+        },
+      },
+    },
+    Price_Limit: {
       type: DataTypes.DECIMAL(15, 2),
       allowNull: false,
       validate: {
         min: 0,
       },
     },
-    Total_Amount: {
-      type: DataTypes.DECIMAL(15, 2),
-      allowNull: false,
-      validate: {
-        min: 0,
-      },
-    },
-    Transaction_Date: {
+    Order_Date: {
       type: DataTypes.DATE,
       allowNull: false,
       defaultValue: DataTypes.NOW,
     },
+    Shares: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+      validate: {
+        min: 1,
+      },
+    },
   },
   {
     sequelize,
-    modelName: "Transaction",
-    tableName: "Transaction_Table",
+    modelName: "Order",
+    tableName: "Order_Table",
     timestamps: false,
   }
 );
 
-module.exports = Transaction;
+module.exports = Order;

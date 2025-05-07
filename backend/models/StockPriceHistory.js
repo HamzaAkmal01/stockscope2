@@ -1,18 +1,23 @@
 const { DataTypes } = require("sequelize");
 const sequelize = require("../config/database");
+const Stock = require("./Stock");
 
-const Stock = sequelize.define(
-  "Stock",
+const StockPriceHistory = sequelize.define(
+  "StockPriceHistory",
   {
-    StockID: {
-      type: DataTypes.INTEGER.UNSIGNED,
+    HistoryID: {
+      type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
       allowNull: false,
     },
-    StockName: {
-      type: DataTypes.STRING(255),
+    StockID: {
+      type: DataTypes.INTEGER,
       allowNull: false,
+      references: {
+        model: Stock,
+        key: "StockID",
+      },
     },
     TickerSymbol: {
       type: DataTypes.STRING(255),
@@ -38,18 +43,6 @@ const Stock = sequelize.define(
       type: DataTypes.DOUBLE,
       allowNull: false,
     },
-    MarketCap: {
-      type: DataTypes.BIGINT,
-      allowNull: false,
-    },
-    Sector: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-    },
-    Exchange: {
-      type: DataTypes.STRING(255),
-      allowNull: false,
-    },
     UpdatedAt: {
       type: DataTypes.DATE,
       allowNull: false,
@@ -57,9 +50,12 @@ const Stock = sequelize.define(
     },
   },
   {
-    tableName: "Stock_Table",
+    tableName: "stock_price_history",
     timestamps: false,
   }
 );
 
-module.exports = Stock;
+// Define association
+StockPriceHistory.belongsTo(Stock, { foreignKey: "StockID" });
+
+module.exports = StockPriceHistory;
