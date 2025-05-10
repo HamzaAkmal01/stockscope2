@@ -1,95 +1,619 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import Navbar from '@/components/Navbar'
-import ProtectedRoute from '@/components/ProtectedRoute'
-import { stockAPI, marketAPI } from '@/services/api'
+import { useEffect, useState } from 'react';
+// import { stockAPI } from '@/services/api';
+import dynamic from 'next/dynamic';
+import {
+  Chart as ChartJS,
+  LineElement,
+  PointElement,
+  LinearScale,
+  CategoryScale,
+  Tooltip,
+  Legend,
+  Filler,
+} from 'chart.js';
+
+ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip, Legend, Filler);
+
+const Chart = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false });
 
 export default function Dashboard() {
-  const [stocks, setStocks] = useState([])
-  const [marketTrends, setMarketTrends] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [stocks, setStocks] = useState([]);
+  const [selectedStock, setSelectedStock] = useState(null);
+  const [priceHistory, setPriceHistory] = useState([]);
+  const [showModal, setShowModal] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [marketOverview, setMarketOverview] = useState({
+    sp500: { value: 0, change: 0 },
+    nasdaq: { value: 0, change: 0 },
+    dowJones: { value: 0, change: 0 }
+  });
+  const [trendingTopics, setTrendingTopics] = useState([]);
+  const [marketLoading, setMarketLoading] = useState(true);
+  const [marketError, setMarketError] = useState(null);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [riskAnalysis, setRiskAnalysis] = useState(null);
+  const [loadingRisk, setLoadingRisk] = useState(false);
+  const [activeTab, setActiveTab] = useState('overview');
+  const [watchlist, setWatchlist] = useState([]);
+  const [watchlistLoading, setWatchlistLoading] = useState(false);
+  const [watchlistError, setWatchlistError] = useState(null);
+  const userId = 1; // TODO: Replace with real user ID from auth
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [stocksResponse, trendsResponse] = await Promise.all([
-          stockAPI.getAllStocks(),
-          marketAPI.getMarketTrends()
-        ])
-        setStocks(stocksResponse.data)
-        setMarketTrends(trendsResponse.data)
-      } catch (error) {
-        console.error('Error fetching dashboard data:', error)
-      } finally {
-        setLoading(false)
-      }
+    // --- MOCK DATA START ---
+    // Comment out this block and uncomment the API code below to use real backend
+    const mockStocks = [
+      { StockID: 1, Name: 'Apple Inc.', Symbol: 'AAPL', Price: 175.12 },
+      { StockID: 2, Name: 'Microsoft Corp.', Symbol: 'MSFT', Price: 320.45 },
+      { StockID: 3, Name: 'Amazon.com', Symbol: 'AMZN', Price: 135.67 },
+      { StockID: 4, Name: 'Tesla Inc.', Symbol: 'TSLA', Price: 245.89 },
+      { StockID: 5, Name: 'Alphabet Inc.', Symbol: 'GOOGL', Price: 2800.23 },
+    ];
+    setStocks(mockStocks);
+    setLoading(false);
+    // --- MOCK DATA END ---
+
+    // --- REAL API CODE (uncomment when backend is ready) ---
+    // async function fetchStocks() {
+    //   setLoading(true);
+    //   try {
+    //     const res = await stockAPI.getAllStocks();
+    //     setStocks(res.data.slice(0, 5));
+    //   } catch (err) {
+    //     setStocks([]);
+    //   } finally {
+    //     setLoading(false);
+    //   }
+    // }
+    // fetchStocks();
+  }, []);
+
+  useEffect(() => {
+    fetchMarketOverview();
+    // Set up polling every 5 minutes
+    const interval = setInterval(fetchMarketOverview, 5 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchMarketOverview = async () => {
+    try {
+      setMarketLoading(true);
+      setMarketError(null);
+
+      // --- MOCK DATA START ---
+      // Comment out this block and uncomment the API code below to use real backend
+      const mockOverview = {
+        sp500: { value: 4820.15, change: 1.2 },
+        nasdaq: { value: 15250.33, change: 0.8 },
+        dowJones: { value: 37592.98, change: -0.3 }
+      };
+
+      const mockTopics = [
+        { id: 1, title: 'Tech Sector Rally', color: 'purple' },
+        { id: 2, title: 'Federal Reserve Meeting', color: 'blue' },
+        { id: 3, title: 'Crypto Market Update', color: 'pink' }
+      ];
+
+      // Simulate network delay
+      await new Promise(resolve => setTimeout(resolve, 500));
+
+      setIsRefreshing(true);
+      setTimeout(() => {
+        setMarketOverview(mockOverview);
+        setTrendingTopics(mockTopics);
+        setIsRefreshing(false);
+      }, 300);
+      // --- MOCK DATA END ---
+
+      // --- REAL API CODE (uncomment when backend is ready) ---
+      // const response = await fetch('http://localhost:5000/api/market/overview');
+      // if (!response.ok) {
+      //   throw new Error('Failed to fetch market data');
+      // }
+      // const data = await response.json();
+      // setIsRefreshing(true);
+      // setTimeout(() => {
+      //   setMarketOverview(data.overview);
+      //   setTrendingTopics(data.topics);
+      //   setIsRefreshing(false);
+      // }, 300);
+    } catch (error) {
+      console.error('Error fetching market overview:', error);
+      setMarketError('Failed to load market data. Please try again later.');
+    } finally {
+      setMarketLoading(false);
     }
+  };
 
-    fetchData()
-  }, [])
+  const handleStockClick = async (stock) => {
+    setSelectedStock(stock);
+    setShowModal(true);
+    setLoadingHistory(true);
+    setLoadingRisk(true);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-500"></div>
-      </div>
-    )
-  }
+    // --- MOCK DATA FOR PRICE HISTORY ---
+    // Comment out this block and uncomment the API code below to use real backend
+    const today = new Date();
+    let price = stock.Price;
+    const mockHistory = [];
+    for (let i = 0; i < 50; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() - (49 - i));
+      price += (Math.random() - 0.5) * 2;
+      mockHistory.push({
+        Date: date.toISOString().split('T')[0],
+        Price: parseFloat(price.toFixed(2)),
+      });
+    }
+    setPriceHistory(mockHistory);
+    setLoadingHistory(false);
+
+    // Mock risk analysis data
+    const mockRiskAnalysis = {
+      RiskAnalysisID: stock.StockID,
+      Stock_ID: stock.StockID,
+      StockSymbol: stock.Symbol,
+      StockName: stock.Name,
+      Trend: Math.random() > 0.5 ? 'Bullish' : 'Bearish',
+      Setup: ['BearishMomentum', 'BullishMomentum', 'OversoldBounce', 'OverboughtPullback', 'MiddleBandPullback'][Math.floor(Math.random() * 5)],
+      Threshold: ['Overbought', 'Oversold', 'Neutral'][Math.floor(Math.random() * 3)],
+      Momentum: ['Healthy', 'Weak', 'Neutral'][Math.floor(Math.random() * 3)],
+      PriceAction: ['Healthy', 'Weak', 'Neutral'][Math.floor(Math.random() * 3)],
+      Signal: ['Hold', 'Buy_BullishReversal', 'Buy_TrendContinuation', 'Sell_BearishReversal', 'Sell_TrendContinuation'][Math.floor(Math.random() * 5)],
+      AnalysisTimestamp: new Date().toISOString()
+    };
+    setRiskAnalysis(mockRiskAnalysis);
+    setLoadingRisk(false);
+    // --- MOCK DATA END ---
+
+    // --- REAL API CODE (uncomment when backend is ready) ---
+    // try {
+    //   const [historyRes, riskRes] = await Promise.all([
+    //     stockAPI.getStockPriceHistory(stock.id || stock.StockID),
+    //     fetch(`http://localhost:5000/api/risk-analysis/${stock.id || stock.StockID}`)
+    //   ]);
+    //   setPriceHistory(historyRes.data);
+    //   const riskData = await riskRes.json();
+    //   setRiskAnalysis(riskData);
+    // } catch (err) {
+    //   setPriceHistory([]);
+    //   setRiskAnalysis(null);
+    // } finally {
+    //   setLoadingHistory(false);
+    //   setLoadingRisk(false);
+    // }
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setSelectedStock(null);
+    setPriceHistory([]);
+    setRiskAnalysis(null);
+  };
+
+  // Add to Watchlist handler (mock for now)
+  const handleAddToWatchlist = async (stock) => {
+    // --- MOCK: Simulate API call ---
+    alert(`${stock.Name || stock.name} added to watchlist!`);
+    // --- REAL API CODE (uncomment when backend is ready) ---
+    // await fetch('http://localhost:5000/api/watchlist', {
+    //   method: 'POST',
+    //   headers: { 'Content-Type': 'application/json' },
+    //   body: JSON.stringify({ stockId: stock.StockID || stock.id })
+    // });
+  };
+
+  // Fetch watchlist when tab is switched to 'watchlist'
+  useEffect(() => {
+    if (activeTab === 'watchlist') {
+      const fetchWatchlist = async () => {
+        try {
+          setWatchlistLoading(true);
+          setWatchlistError(null);
+          const res = await fetch(`http://localhost:5000/api/watchlist?userId=${userId}`);
+          if (!res.ok) throw new Error('Failed to fetch watchlist');
+          const data = await res.json();
+          setWatchlist(data);
+        } catch (err) {
+          setWatchlistError(err.message);
+        } finally {
+          setWatchlistLoading(false);
+        }
+      };
+      fetchWatchlist();
+    }
+  }, [activeTab]);
 
   return (
-    <ProtectedRoute>
-      <>
-        <Navbar />
-        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-          <div className="px-4 py-6 sm:px-0">
-            <h2 className="text-2xl font-bold gradient-text mb-6">Market Overview</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {stocks.map((stock) => (
-                <div key={stock.id} className="gradient-border">
-                  <div className="p-5">
-                    <div className="flex items-center">
-                      <div className="flex-shrink-0">
-                        <svg className="h-6 w-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
-                        </svg>
+    <div className="relative min-h-screen flex bg-black overflow-hidden">
+      {/* Blurred Gradient Shapes */}
+      <div className="absolute top-0 left-0 w-[60vw] h-[20vw] bg-gradient-to-tr from-purple-800/40 to-blue-400/10 rounded-full blur-3xl -rotate-12 -translate-y-1/3 -translate-x-1/4 z-0" />
+      <div className="absolute top-10 right-0 w-[40vw] h-[10vw] bg-gradient-to-tr from-yellow-700/30 to-purple-900/10 rounded-full blur-2xl rotate-12 translate-x-1/4 z-0" />
+      <div className="absolute bottom-0 left-0 w-[50vw] h-[12vw] bg-gradient-to-tr from-purple-900/30 to-pink-400/10 rounded-full blur-2xl rotate-6 translate-y-1/3 -translate-x-1/4 z-0" />
+      <div className="absolute bottom-10 right-0 w-[40vw] h-[10vw] bg-gradient-to-tr from-pink-700/30 to-purple-900/10 rounded-full blur-2xl -rotate-12 translate-x-1/4 z-0" />
+
+      {/* Sidebar */}
+      <aside className="relative z-10 w-64 hidden md:flex flex-col bg-black/60 glass-effect border-r border-white/10 p-6 min-h-screen">
+        <div className="font-bold text-2xl mb-8 tracking-tight bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent">StockScope</div>
+        <nav className="space-y-2">
+          <button
+            className={`block w-full text-left px-3 py-2 rounded-lg font-semibold shadow transition ${activeTab === 'overview' ? 'bg-gradient-to-r from-purple-900/30 to-blue-900/10 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            onClick={() => setActiveTab('overview')}
+          >
+            Overview
+          </button>
+          <button
+            className={`block w-full text-left px-3 py-2 rounded-lg font-semibold shadow transition ${activeTab === 'watchlist' ? 'bg-gradient-to-r from-purple-900/30 to-blue-900/10 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            onClick={() => setActiveTab('watchlist')}
+          >
+            Watchlist
+          </button>
+          <a className="block px-3 py-2 rounded-lg text-gray-300 hover:bg-white/10" href="#">My Assets</a>
+          <a className="block px-3 py-2 rounded-lg text-gray-300 hover:bg-white/10" href="#">Performance</a>
+        </nav>
+      </aside>
+      {/* Main Content */}
+      <main className="relative z-10 flex-1 p-8">
+        {/* Topbar */}
+        <div className="flex items-center justify-between mb-8">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent">
+            {activeTab === 'overview' ? 'Overview' : 'Watchlist'}
+          </h1>
+          {activeTab === 'overview' && (
+            <input type="text" placeholder="Search stocks..." className="px-4 py-2 rounded-lg border border-white/10 bg-black/40 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition w-64" />
+          )}
+        </div>
+        {/* Tab Content */}
+        {activeTab === 'overview' ? (
+          <>
+            {/* Stock Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8 mt-4">
+              {loading ? (
+                <div className="col-span-5 text-center text-gray-400">Loading stocks...</div>
+              ) : stocks.length === 0 ? (
+                <div className="col-span-5 text-center text-gray-400">No stocks found.</div>
+              ) : (
+                stocks.map((stock, idx) => (
+                  <div key={stock.id || stock.StockID} className="relative group glass-effect bg-black/60 rounded-2xl shadow-xl p-6 flex flex-col items-center border border-white/10 backdrop-blur-md transition-all duration-200 hover:scale-105 hover:shadow-2xl overflow-hidden" style={{ minHeight: 210 }}>
+                    {/* Gradient Glow */}
+                    <div className="absolute inset-0 z-0 rounded-2xl pointer-events-none group-hover:opacity-100 opacity-60 transition-all duration-300" style={{background: 'linear-gradient(135deg, rgba(168,139,250,0.12) 0%, rgba(236,72,153,0.10) 100%)'}} />
+                    {/* Stock Icon/Logo */}
+                    <div className="relative z-10 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-purple-500 via-blue-400 to-pink-400 shadow-lg mb-4">
+                      <span className="text-2xl font-bold text-white select-none">
+                        {stock.Symbol ? stock.Symbol[0] : '?'}
+                      </span>
+                    </div>
+                    {/* Stock Name */}
+                    <div className="relative z-10 text-lg font-semibold text-white mb-1 text-center truncate w-full">
+                      {stock.Name || stock.name}
+                    </div>
+                    {/* Symbol Badge */}
+                    <span className="relative z-10 inline-block px-3 py-1 text-xs font-bold rounded-full bg-gradient-to-r from-purple-700 via-blue-600 to-pink-600 text-white shadow mb-2">
+                      {stock.Symbol || stock.symbol}
+                    </span>
+                    {/* Price */}
+                    <div className="relative z-10 text-3xl font-extrabold bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent mb-1">
+                      ${stock.Price || stock.price}
+                    </div>
+                    {/* Add to Watchlist Button */}
+                    <button
+                      onClick={() => handleAddToWatchlist(stock)}
+                      className="relative z-10 mt-2 px-4 py-1 rounded-lg bg-gradient-to-r from-purple-700 via-blue-600 to-pink-600 text-white text-xs font-semibold shadow hover:from-purple-800 hover:to-pink-700 transition-all duration-200"
+                    >
+                      + Add to Watchlist
+                    </button>
+                    {/* Decorative Blur Circle */}
+                    <div className="absolute -bottom-8 -right-8 w-24 h-24 rounded-full bg-gradient-to-tr from-pink-400/30 to-purple-400/10 blur-2xl opacity-60 pointer-events-none" />
+                    {/* Overlay for clickable area */}
+                    <button
+                      className="absolute inset-0 z-0 w-full h-full cursor-pointer focus:outline-none"
+                      style={{ background: 'transparent' }}
+                      onClick={() => handleStockClick(stock)}
+                      aria-label={`View details for ${stock.Name || stock.name}`}
+                    />
+                  </div>
+                ))
+              )}
+            </div>
+            {/* Market News and Trends Section */}
+            <div className="mt-12">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent">Market News & Trends</h2>
+                <button
+                  onClick={fetchMarketOverview}
+                  disabled={isRefreshing}
+                  className={`flex items-center space-x-2 px-4 py-2 rounded-lg border border-white/10 bg-black/40 text-white hover:bg-white/10 transition-all duration-200 ${
+                    isRefreshing ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
+                >
+                  <svg
+                    className={`w-5 h-5 ${isRefreshing ? 'animate-spin' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                    />
+                  </svg>
+                  <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Market Overview Card */}
+                <div className="glass-effect bg-black/60 rounded-2xl p-6 border border-white/10">
+                  <h3 className="text-xl font-semibold text-white mb-4">Market Overview</h3>
+                  {marketLoading ? (
+                    <div className="text-center text-gray-400">Loading market data...</div>
+                  ) : marketError ? (
+                    <div className="text-center text-red-400">{marketError}</div>
+                  ) : (
+                    <div className={`space-y-4 transition-opacity duration-300 ${isRefreshing ? 'opacity-50' : 'opacity-100'}`}>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-300">S&P 500</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-gray-300 transition-all duration-300 transform hover:scale-105">
+                            ${marketOverview.sp500.value.toLocaleString()}
+                          </span>
+                          <span className={`transition-all duration-300 transform hover:scale-105 ${
+                            marketOverview.sp500.change >= 0 ? "text-green-400" : "text-red-400"
+                          }`}>
+                            {marketOverview.sp500.change >= 0 ? "+" : ""}{marketOverview.sp500.change.toFixed(2)}%
+                          </span>
+                        </div>
                       </div>
-                      <div className="ml-5 w-0 flex-1">
-                        <dl>
-                          <dt className="text-sm font-medium text-gray-400 truncate">{stock.symbol}</dt>
-                          <dd className="text-lg font-medium text-white">${stock.price}</dd>
-                          <dd className={`text-sm ${stock.change >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                            {stock.change >= 0 ? '+' : ''}{stock.change}%
-                          </dd>
-                        </dl>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-300">NASDAQ</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-gray-300 transition-all duration-300 transform hover:scale-105">
+                            ${marketOverview.nasdaq.value.toLocaleString()}
+                          </span>
+                          <span className={`transition-all duration-300 transform hover:scale-105 ${
+                            marketOverview.nasdaq.change >= 0 ? "text-green-400" : "text-red-400"
+                          }`}>
+                            {marketOverview.nasdaq.change >= 0 ? "+" : ""}{marketOverview.nasdaq.change.toFixed(2)}%
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-gray-300">Dow Jones</span>
+                        <div className="flex items-center space-x-2">
+                          <span className="text-gray-300 transition-all duration-300 transform hover:scale-105">
+                            ${marketOverview.dowJones.value.toLocaleString()}
+                          </span>
+                          <span className={`transition-all duration-300 transform hover:scale-105 ${
+                            marketOverview.dowJones.change >= 0 ? "text-green-400" : "text-red-400"
+                          }`}>
+                            {marketOverview.dowJones.change >= 0 ? "+" : ""}{marketOverview.dowJones.change.toFixed(2)}%
+                          </span>
+                        </div>
                       </div>
                     </div>
+                  )}
+                </div>
+                
+                {/* Trending Topics Card */}
+                <div className="glass-effect bg-black/60 rounded-2xl p-6 border border-white/10">
+                  <h3 className="text-xl font-semibold text-white mb-4">Trending Topics</h3>
+                  {marketLoading ? (
+                    <div className="text-center text-gray-400">Loading topics...</div>
+                  ) : marketError ? (
+                    <div className="text-center text-red-400">{marketError}</div>
+                  ) : (
+                    <div className={`space-y-4 transition-opacity duration-300 ${isRefreshing ? 'opacity-50' : 'opacity-100'}`}>
+                      {trendingTopics.map((topic) => (
+                        <div 
+                          key={topic.id} 
+                          className="flex items-center space-x-3 transition-all duration-300 transform hover:translate-x-1"
+                        >
+                          <span className={`w-2 h-2 rounded-full bg-${topic.color}-400`}></span>
+                          <span className="text-gray-300">{topic.title}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+            {/* Risk Analysis Section */}
+            <div className="mt-12">
+             {/* <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent mb-6">Risk Analysis</h2> */}
+              {loadingRisk ? (
+                <div className="text-center text-gray-400">Loading risk analysis...</div>
+              ) : riskAnalysis && (
+                <div className="mb-8 relative p-8 rounded-2xl bg-black/40 shadow-xl backdrop-blur-lg overflow-hidden premium-glass-card">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                    <div className="space-y-2">
+                      <span className="text-sm text-gray-400">Trend</span>
+                      <div className={`font-medium ${
+                        riskAnalysis.Trend === 'Bullish' ? 'text-green-400' : 'text-red-400'
+                      }`}>
+                        {riskAnalysis.Trend}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <span className="text-sm text-gray-400">Setup</span>
+                      <div className="text-white font-medium">{riskAnalysis.Setup}</div>
+                    </div>
+                    <div className="space-y-2">
+                      <span className="text-sm text-gray-400">Threshold</span>
+                      <div className={`font-medium ${
+                        riskAnalysis.Threshold === 'Overbought' ? 'text-red-400' :
+                        riskAnalysis.Threshold === 'Oversold' ? 'text-green-400' :
+                        'text-yellow-400'
+                      }`}>
+                        {riskAnalysis.Threshold}
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <span className="text-sm text-gray-400">Signal</span>
+                      <div className={`font-medium ${
+                        riskAnalysis.Signal.startsWith('Buy') ? 'text-green-400' :
+                        riskAnalysis.Signal.startsWith('Sell') ? 'text-red-400' :
+                        'text-yellow-400'
+                      }`}>
+                        {riskAnalysis.Signal.replace('_', ' ')}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-4 text-sm text-gray-400">
+                    Last updated: {new Date(riskAnalysis.AnalysisTimestamp).toLocaleString()}
+                  </div>
+                </div>
+              )}
+            </div>
+          </>
+        ) : (
+          // Watchlist Tab Content
+          watchlistLoading ? (
+            <div className="text-gray-400">Loading watchlist...</div>
+          ) : watchlistError ? (
+            <div className="text-red-400">{watchlistError}</div>
+          ) : watchlist.length === 0 ? (
+            <div className="text-gray-400">Your watchlist is empty.</div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
+              {watchlist.map((item) => (
+                <div key={item.Wishlist_ID} className="glass-effect bg-black/60 rounded-2xl shadow-xl p-6 flex flex-col items-center border border-white/10 backdrop-blur-md transition-all duration-200 hover:scale-105 hover:shadow-2xl overflow-hidden">
+                  <div className="relative z-10 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-purple-500 via-blue-400 to-pink-400 shadow-lg mb-4">
+                    <span className="text-2xl font-bold text-white select-none">
+                      {item.Stock?.TickerSymbol ? item.Stock.TickerSymbol[0] : '?'}
+                    </span>
+                  </div>
+                  <div className="relative z-10 text-lg font-semibold text-white mb-1 text-center truncate w-full">
+                    {item.Stock?.StockName}
+                  </div>
+                  <span className="relative z-10 inline-block px-3 py-1 text-xs font-bold rounded-full bg-gradient-to-r from-purple-700 via-blue-600 to-pink-600 text-white shadow mb-2">
+                    {item.Stock?.TickerSymbol}
+                  </span>
+                  <div className="relative z-10 text-3xl font-extrabold bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent mb-1">
+                    ${item.Stock?.CurrentPrice}
                   </div>
                 </div>
               ))}
             </div>
+          )
+        )}
+        {/* Modal for Stock Price History */}
+        {showModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-60">
+            <div className="glass-effect bg-black/80 rounded-2xl shadow-2xl p-8 w-full max-w-4xl relative border border-white/10 backdrop-blur-md">
+              <button onClick={closeModal} className="absolute top-4 right-4 text-gray-400 hover:text-pink-400 text-2xl">&times;</button>
+              {/* Stock Info Header */}
+              <div className="flex flex-col items-center mb-8">
+                {selectedStock?.logo && (
+                  <img src={selectedStock.logo} alt={selectedStock.Name || selectedStock.name} className="w-16 h-16 rounded-full mb-2 bg-white/10 object-contain" />
+                )}
+                <div className="text-lg font-bold text-white mb-1 text-center">{selectedStock?.Name || selectedStock?.name}</div>
+                <span className="inline-block px-3 py-1 text-xs font-bold rounded-full bg-gradient-to-r from-purple-700 via-blue-600 to-pink-600 text-white shadow mb-2">
+                  {selectedStock?.Symbol || selectedStock?.symbol}
+                </span>
+                <div className="text-3xl font-extrabold bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent mb-1">
+                  ${selectedStock?.Price || selectedStock?.price}
+                </div>
+              </div>
 
-            <h2 className="text-2xl font-bold gradient-text mt-8 mb-6">Market Trends</h2>
-            <div className="gradient-border">
-              <div className="p-6">
-                <div className="space-y-4">
-                  {marketTrends.map((trend) => (
-                    <div key={trend.id} className="flex items-center justify-between">
-                      <div>
-                        <h3 className="text-lg font-medium text-white">{trend.title}</h3>
-                        <p className="text-sm text-gray-400">{trend.description}</p>
+              {/* Side by side layout for risk analysis and chart */}
+              <div className="flex flex-col md:flex-row gap-8 items-stretch">
+                {/* Risk Analysis Section */}
+                <div className="w-full md:w-1/2 flex items-center">
+                  {loadingRisk ? (
+                    <div className="text-center text-gray-400 w-full">Loading risk analysis...</div>
+                  ) : riskAnalysis && (
+                    <div className="premium-glass-card w-full">
+                      <div className="grid grid-cols-2 gap-6 p-8">
+                        <div className="space-y-2">
+                          <span className="text-sm text-gray-400">Trend</span>
+                          <div className={`font-medium ${
+                            riskAnalysis.Trend === 'Bullish' ? 'text-green-400' : 'text-red-400'
+                          }`}>
+                            {riskAnalysis.Trend}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <span className="text-sm text-gray-400">Setup</span>
+                          <div className="text-white font-medium">{riskAnalysis.Setup}</div>
+                        </div>
+                        <div className="space-y-2">
+                          <span className="text-sm text-gray-400">Threshold</span>
+                          <div className={`font-medium ${
+                            riskAnalysis.Threshold === 'Overbought' ? 'text-red-400' :
+                            riskAnalysis.Threshold === 'Oversold' ? 'text-green-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {riskAnalysis.Threshold}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          <span className="text-sm text-gray-400">Signal</span>
+                          <div className={`font-medium ${
+                            riskAnalysis.Signal.startsWith('Buy') ? 'text-green-400' :
+                            riskAnalysis.Signal.startsWith('Sell') ? 'text-red-400' :
+                            'text-yellow-400'
+                          }`}>
+                            {riskAnalysis.Signal.replace('_', ' ')}
+                          </div>
+                        </div>
                       </div>
-                      <div className={`text-sm font-medium ${trend.impact === 'positive' ? 'text-green-400' : 'text-red-400'}`}>
-                        {trend.impact === 'positive' ? '↑' : '↓'} {trend.percentage}%
+                      <div className="px-8 pb-4 text-sm text-gray-400">
+                        Last updated: {new Date(riskAnalysis.AnalysisTimestamp).toLocaleString()}
                       </div>
                     </div>
-                  ))}
+                  )}
+                </div>
+                {/* Chart Section */}
+                <div className="w-full md:w-1/2 flex flex-col justify-center">
+                  <h2 className="text-lg font-semibold mb-4 bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent text-center">Price History</h2>
+                  {loadingHistory ? (
+                    <div className="text-center text-gray-400">Loading chart...</div>
+                  ) : priceHistory.length === 0 ? (
+                    <div className="text-center text-gray-400">No price history found.</div>
+                  ) : (
+                    <Chart
+                      data={{
+                        labels: priceHistory.map(item => item.Date || item.date),
+                        datasets: [
+                          {
+                            label: 'Price',
+                            data: priceHistory.map(item => item.Price || item.price),
+                            fill: true,
+                            borderColor: '#a78bfa',
+                            backgroundColor: 'rgba(168,139,250,0.1)',
+                            tension: 0.3,
+                            pointRadius: 0,
+                          },
+                        ],
+                      }}
+                      options={{
+                        responsive: true,
+                        plugins: {
+                          legend: { display: false },
+                        },
+                        scales: {
+                          x: {
+                            display: false,
+                          },
+                          y: {
+                            beginAtZero: false,
+                            ticks: { color: '#fff' },
+                            grid: { color: 'rgba(255,255,255,0.05)' },
+                          },
+                        },
+                      }}
+                    />
+                  )}
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </>
-    </ProtectedRoute>
-  )
+        )}
+      </main>
+    </div>
+  );
 } 

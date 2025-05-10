@@ -3,6 +3,8 @@ const cors = require("cors");
 const bodyParser = require("body-parser");
 const sequelize = require("./config/database");
 const stockDataService = require("./services/stockDataService");
+const marketRoutes = require("./routes/market");
+const watchlistRoutes = require("./routes/watchlist");
 
 // Import all models to ensure they are registered with Sequelize
 require("./models/User");
@@ -25,6 +27,10 @@ const port = 5000;
 // Middleware
 app.use(cors());
 app.use(bodyParser.json());
+
+// Routes
+app.use("/api/market", marketRoutes);
+app.use("/api/watchlist", watchlistRoutes);
 
 // Test route
 app.get("/", (req, res) => {

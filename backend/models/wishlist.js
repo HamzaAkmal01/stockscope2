@@ -1,5 +1,6 @@
 const { DataTypes, Model } = require("sequelize");
 const sequelize = require("../config/database");
+const Stock = require('./Stock');
 
 class Wishlist extends Model {}
 
@@ -39,5 +40,7 @@ Wishlist.init(
     timestamps: false,
   }
 );
+
+Wishlist.belongsTo(Stock, { foreignKey: 'Stock_ID', as: 'Stock' });
 
 module.exports = Wishlist;
