@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 // import { stockAPI } from '@/services/api';
 import dynamic from 'next/dynamic';
 import {
@@ -19,6 +20,7 @@ ChartJS.register(LineElement, PointElement, LinearScale, CategoryScale, Tooltip,
 const Chart = dynamic(() => import('react-chartjs-2').then(mod => mod.Line), { ssr: false });
 
 export default function Dashboard() {
+  const router = useRouter();
   const [stocks, setStocks] = useState([]);
   const [selectedStock, setSelectedStock] = useState(null);
   const [priceHistory, setPriceHistory] = useState([]);
@@ -41,6 +43,29 @@ export default function Dashboard() {
   const [watchlistLoading, setWatchlistLoading] = useState(false);
   const [watchlistError, setWatchlistError] = useState(null);
   const userId = 1; // TODO: Replace with real user ID from auth
+  const [selectedTrend, setSelectedTrend] = useState(null);
+  const [selectedTrends, setSelectedTrends] = useState([]);
+  const [marketTrends, setMarketTrends] = useState([]);
+  const [trendsLoading, setTrendsLoading] = useState(false);
+  const [trendsError, setTrendsError] = useState(null);
+  const [trendData, setTrendData] = useState(null);
+  const [allTrendsData, setAllTrendsData] = useState({});
+  const [userDetails, setUserDetails] = useState(null);
+  const [portfolioData, setPortfolioData] = useState([]);
+  const [portfolioLoading, setPortfolioLoading] = useState(false);
+  const [portfolioError, setPortfolioError] = useState(null);
+  const [newsData, setNewsData] = useState([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState(null);
+  const [selectedNewsCategory, setSelectedNewsCategory] = useState('all');
+
+  useEffect(() => {
+    // Authentication check - commented out for now
+    // const isAuthenticated = localStorage.getItem('token');
+    // if (!isAuthenticated) {
+    //   router.push('/login');
+    // }
+  }, [router]);
 
   useEffect(() => {
     // --- MOCK DATA START ---
@@ -227,6 +252,252 @@ export default function Dashboard() {
     }
   }, [activeTab]);
 
+  // Fetch market trends
+  useEffect(() => {
+    if (activeTab === 'market-trends') {
+      const fetchMarketTrends = async () => {
+        try {
+          setTrendsLoading(true);
+          setTrendsError(null);
+          
+          // --- MOCK DATA START ---
+          const mockTrends = [
+            { TrendID: 1, TrendName: 'Moving Average (20)' },
+            { TrendID: 2, TrendName: 'RSI Indicator' },
+            { TrendID: 3, TrendName: 'MACD' },
+            { TrendID: 4, TrendName: 'Bollinger Bands' },
+            { TrendID: 5, TrendName: 'Volume Trend' }
+          ];
+
+          // Simulate network delay
+          await new Promise(resolve => setTimeout(resolve, 500));
+          setMarketTrends(mockTrends);
+          // --- MOCK DATA END ---
+
+          // --- REAL API CODE (uncomment when backend is ready) ---
+          // const res = await fetch('http://localhost:5000/api/market-trends');
+          // if (!res.ok) throw new Error('Failed to fetch market trends');
+          // const data = await res.json();
+          // setMarketTrends(data);
+        } catch (err) {
+          setTrendsError(err.message);
+        } finally {
+          setTrendsLoading(false);
+        }
+      };
+      fetchMarketTrends();
+    }
+  }, [activeTab]);
+
+  // Update trend selection handler
+  const handleTrendSelection = (trend) => {
+    setSelectedTrends(prev => {
+      const isSelected = prev.some(t => t.TrendID === trend.TrendID);
+      if (isSelected) {
+        return prev.filter(t => t.TrendID !== trend.TrendID);
+      } else {
+        return [...prev, trend];
+      }
+    });
+  };
+
+  // Fetch trend data when trends or stock changes
+  useEffect(() => {
+    if (selectedTrends.length > 0 && selectedStock) {
+      const fetchAllTrendsData = async () => {
+        try {
+          const newTrendsData = {};
+          for (const trend of selectedTrends) {
+            // --- MOCK DATA START ---
+            const today = new Date();
+            const mockTrendData = [];
+            let baseValue = 100;
+
+            for (let i = 0; i < 50; i++) {
+              const date = new Date(today);
+              date.setDate(today.getDate() - (49 - i));
+              
+              let value;
+              switch(trend.TrendID) {
+                case 1: // Moving Average
+                  value = baseValue + Math.sin(i / 5) * 10;
+                  break;
+                case 2: // RSI
+                  value = 30 + Math.sin(i / 3) * 40;
+                  break;
+                case 3: // MACD
+                  value = Math.sin(i / 4) * 20;
+                  break;
+                case 4: // Bollinger Bands
+                  value = baseValue + Math.sin(i / 6) * 15;
+                  break;
+                case 5: // Volume
+                  value = 1000 + Math.random() * 2000;
+                  break;
+                default:
+                  value = baseValue + Math.random() * 20;
+              }
+              
+              mockTrendData.push({
+                Date: date.toISOString().split('T')[0],
+                Value: parseFloat(value.toFixed(2))
+              });
+            }
+            
+            newTrendsData[trend.TrendID] = mockTrendData;
+            // --- MOCK DATA END ---
+          }
+          
+          await new Promise(resolve => setTimeout(resolve, 500));
+          setAllTrendsData(newTrendsData);
+        } catch (err) {
+          console.error('Error fetching trend data:', err);
+          setAllTrendsData({});
+        }
+      };
+      fetchAllTrendsData();
+    }
+  }, [selectedTrends, selectedStock]);
+
+  // Fetch user and portfolio data
+  useEffect(() => {
+    if (activeTab === 'portfolio') {
+      const fetchPortfolioData = async () => {
+        try {
+          setPortfolioLoading(true);
+          setPortfolioError(null);
+
+          // --- MOCK DATA START ---
+          // Comment out this block when backend is ready
+          const mockUserDetails = {
+            UserID: 1,
+            Username: "JohnDoe",
+            Email: "john.doe@example.com",
+            FullName: "John Doe",
+            AccountType: "Premium",
+            JoinDate: "2024-01-01",
+            WalletBalance: 25000.00
+          };
+
+          const mockPortfolio = [
+            {
+              PortfolioID: 1,
+              StockID: 1,
+              StockName: "Apple Inc.",
+              Symbol: "AAPL",
+              Quantity: 10,
+              AveragePrice: 150.00,
+              CurrentPrice: 175.12,
+              TotalValue: 1751.20,
+              ProfitLoss: 251.20,
+              ProfitLossPercentage: 16.75
+            },
+            {
+              PortfolioID: 2,
+              StockID: 2,
+              StockName: "Microsoft Corp.",
+              Symbol: "MSFT",
+              Quantity: 5,
+              AveragePrice: 300.00,
+              CurrentPrice: 320.45,
+              TotalValue: 1602.25,
+              ProfitLoss: 102.25,
+              ProfitLossPercentage: 6.82
+            }
+          ];
+
+          // Simulate network delay
+          await new Promise(resolve => setTimeout(resolve, 500));
+          setUserDetails(mockUserDetails);
+          setPortfolioData(mockPortfolio);
+          // --- MOCK DATA END ---
+
+          // --- REAL API CODE (uncomment when backend is ready) ---
+          /*
+          const response = await fetch(`http://localhost:5000/api/portfolio/${userId}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch portfolio data');
+          }
+          const data = await response.json();
+          setUserDetails(data.userDetails);
+          setPortfolioData(data.portfolio);
+          */
+        } catch (err) {
+          setPortfolioError(err.message);
+        } finally {
+          setPortfolioLoading(false);
+        }
+      };
+      fetchPortfolioData();
+    }
+  }, [activeTab]);
+
+  // Fetch news data
+  useEffect(() => {
+    if (activeTab === 'news') {
+      const fetchNews = async () => {
+        try {
+          setNewsLoading(true);
+          setNewsError(null);
+
+          // --- MOCK DATA START ---
+          const mockNews = [
+            {
+              NewsID: 1,
+              Title: "Federal Reserve Signals Potential Rate Cuts",
+              Content: "The Federal Reserve has indicated it may consider interest rate cuts in the coming months, citing concerns about economic growth...",
+              Source: "Financial Times",
+              PublishedDate: "2024-03-15T10:30:00Z",
+              Category: "Economy",
+              Sentiment: "Neutral",
+              ImpactLevel: "High"
+            },
+            {
+              NewsID: 2,
+              Title: "Tech Giants Announce AI Partnership",
+              Content: "Major technology companies have formed a new alliance to advance artificial intelligence research and development...",
+              Source: "Tech Daily",
+              PublishedDate: "2024-03-15T09:15:00Z",
+              Category: "Technology",
+              Sentiment: "Positive",
+              ImpactLevel: "Medium"
+            },
+            {
+              NewsID: 3,
+              Title: "Oil Prices Surge Amid Middle East Tensions",
+              Content: "Crude oil prices have jumped following escalating tensions in the Middle East, raising concerns about global supply...",
+              Source: "Energy News",
+              PublishedDate: "2024-03-15T08:45:00Z",
+              Category: "Energy",
+              Sentiment: "Negative",
+              ImpactLevel: "High"
+            }
+          ];
+
+          // Simulate network delay
+          await new Promise(resolve => setTimeout(resolve, 500));
+          setNewsData(mockNews);
+          // --- MOCK DATA END ---
+
+          // --- REAL API CODE (uncomment when backend is ready) ---
+          /*
+          const response = await fetch(`http://localhost:5000/api/news${selectedNewsCategory !== 'all' ? `/category/${selectedNewsCategory}` : ''}`);
+          if (!response.ok) {
+            throw new Error('Failed to fetch news');
+          }
+          const data = await response.json();
+          setNewsData(data);
+          */
+        } catch (err) {
+          setNewsError(err.message);
+        } finally {
+          setNewsLoading(false);
+        }
+      };
+      fetchNews();
+    }
+  }, [activeTab, selectedNewsCategory]);
+
   return (
     <div className="relative min-h-screen flex bg-black overflow-hidden">
       {/* Blurred Gradient Shapes */}
@@ -251,8 +522,24 @@ export default function Dashboard() {
           >
             Watchlist
           </button>
-          <a className="block px-3 py-2 rounded-lg text-gray-300 hover:bg-white/10" href="#">My Assets</a>
-          <a className="block px-3 py-2 rounded-lg text-gray-300 hover:bg-white/10" href="#">Performance</a>
+          <button
+            className={`block w-full text-left px-3 py-2 rounded-lg font-semibold shadow transition ${activeTab === 'market-trends' ? 'bg-gradient-to-r from-purple-900/30 to-blue-900/10 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            onClick={() => setActiveTab('market-trends')}
+          >
+            Market Trends
+          </button>
+          <button
+            className={`block w-full text-left px-3 py-2 rounded-lg font-semibold shadow transition ${activeTab === 'news' ? 'bg-gradient-to-r from-purple-900/30 to-blue-900/10 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            onClick={() => setActiveTab('news')}
+          >
+            Market News
+          </button>
+          <button
+            className={`block w-full text-left px-3 py-2 rounded-lg font-semibold shadow transition ${activeTab === 'portfolio' ? 'bg-gradient-to-r from-purple-900/30 to-blue-900/10 text-white' : 'text-gray-300 hover:bg-white/10'}`}
+            onClick={() => setActiveTab('portfolio')}
+          >
+            Portfolio
+          </button>
         </nav>
       </aside>
       {/* Main Content */}
@@ -260,7 +547,7 @@ export default function Dashboard() {
         {/* Topbar */}
         <div className="flex items-center justify-between mb-8">
           <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent">
-            {activeTab === 'overview' ? 'Overview' : 'Watchlist'}
+            {activeTab === 'overview' ? 'Overview' : activeTab === 'watchlist' ? 'Watchlist' : activeTab === 'portfolio' ? 'Portfolio' : activeTab === 'news' ? 'Market News' : 'Market Trends'}
           </h1>
           {activeTab === 'overview' && (
             <input type="text" placeholder="Search stocks..." className="px-4 py-2 rounded-lg border border-white/10 bg-black/40 text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition w-64" />
@@ -469,8 +756,7 @@ export default function Dashboard() {
               )}
             </div>
           </>
-        ) : (
-          // Watchlist Tab Content
+        ) : activeTab === 'watchlist' ? (
           watchlistLoading ? (
             <div className="text-gray-400">Loading watchlist...</div>
           ) : watchlistError ? (
@@ -499,6 +785,285 @@ export default function Dashboard() {
               ))}
             </div>
           )
+        ) : activeTab === 'portfolio' ? (
+          <div className="space-y-8">
+            {/* User Profile Section */}
+            <div className="glass-effect bg-black/60 rounded-2xl p-6 border border-white/10">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold text-white mb-2">{userDetails?.FullName}</h2>
+                  <p className="text-gray-400">{userDetails?.Email}</p>
+                </div>
+                <div className="text-right">
+                  <span className="inline-block px-3 py-1 rounded-full bg-gradient-to-r from-purple-700 via-blue-600 to-pink-600 text-white text-sm font-semibold">
+                    {userDetails?.AccountType}
+                  </span>
+                  <p className="text-gray-400 mt-2">Member since {new Date(userDetails?.JoinDate).toLocaleDateString()}</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Wallet Section */}
+            <div className="glass-effect bg-black/60 rounded-2xl p-6 border border-white/10">
+              <h3 className="text-xl font-semibold text-white mb-4">Wallet Balance</h3>
+              <div className="text-4xl font-bold bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent">
+                ${userDetails?.WalletBalance?.toLocaleString()}
+              </div>
+            </div>
+
+            {/* Portfolio Section */}
+            <div className="glass-effect bg-black/60 rounded-2xl p-6 border border-white/10">
+              <h3 className="text-xl font-semibold text-white mb-4">Your Portfolio</h3>
+              {portfolioLoading ? (
+                <div className="text-gray-400">Loading portfolio...</div>
+              ) : portfolioError ? (
+                <div className="text-red-400">{portfolioError}</div>
+              ) : portfolioData.length === 0 ? (
+                <div className="text-gray-400">Your portfolio is empty.</div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-left text-gray-400 border-b border-white/10">
+                        <th className="pb-4">Stock</th>
+                        <th className="pb-4">Quantity</th>
+                        <th className="pb-4">Avg. Price</th>
+                        <th className="pb-4">Current Price</th>
+                        <th className="pb-4">Total Value</th>
+                        <th className="pb-4">Profit/Loss</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {portfolioData.map((item) => (
+                        <tr key={item.PortfolioID} className="border-b border-white/10">
+                          <td className="py-4">
+                            <div className="flex items-center">
+                              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 via-blue-400 to-pink-400 flex items-center justify-center mr-3">
+                                <span className="text-white font-bold">{item.Symbol[0]}</span>
+                              </div>
+                              <div>
+                                <div className="text-white font-medium">{item.StockName}</div>
+                                <div className="text-gray-400 text-sm">{item.Symbol}</div>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="py-4 text-white">{item.Quantity}</td>
+                          <td className="py-4 text-white">${item.AveragePrice.toFixed(2)}</td>
+                          <td className="py-4 text-white">${item.CurrentPrice.toFixed(2)}</td>
+                          <td className="py-4 text-white">${item.TotalValue.toFixed(2)}</td>
+                          <td className="py-4">
+                            <span className={`${item.ProfitLoss >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                              {item.ProfitLoss >= 0 ? '+' : ''}{item.ProfitLoss.toFixed(2)} ({item.ProfitLossPercentage.toFixed(2)}%)
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </div>
+        ) : activeTab === 'news' ? (
+          <div className="space-y-8">
+            {/* News Categories */}
+            <div className="glass-effect bg-black/60 rounded-2xl p-6 border border-white/10">
+              <div className="flex flex-wrap gap-4">
+                <button
+                  onClick={() => setSelectedNewsCategory('all')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    selectedNewsCategory === 'all'
+                      ? 'bg-gradient-to-r from-purple-600 via-blue-500 to-pink-500 text-white'
+                      : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  All News
+                </button>
+                <button
+                  onClick={() => setSelectedNewsCategory('Economy')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    selectedNewsCategory === 'Economy'
+                      ? 'bg-gradient-to-r from-purple-600 via-blue-500 to-pink-500 text-white'
+                      : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  Economy
+                </button>
+                <button
+                  onClick={() => setSelectedNewsCategory('Technology')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    selectedNewsCategory === 'Technology'
+                      ? 'bg-gradient-to-r from-purple-600 via-blue-500 to-pink-500 text-white'
+                      : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  Technology
+                </button>
+                <button
+                  onClick={() => setSelectedNewsCategory('Energy')}
+                  className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                    selectedNewsCategory === 'Energy'
+                      ? 'bg-gradient-to-r from-purple-600 via-blue-500 to-pink-500 text-white'
+                      : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                  }`}
+                >
+                  Energy
+                </button>
+              </div>
+            </div>
+
+            {/* News List */}
+            <div className="space-y-6">
+              {newsLoading ? (
+                <div className="text-gray-400">Loading news...</div>
+              ) : newsError ? (
+                <div className="text-red-400">{newsError}</div>
+              ) : newsData.length === 0 ? (
+                <div className="text-gray-400">No news available.</div>
+              ) : (
+                newsData.map((news) => (
+                  <div key={news.NewsID} className="glass-effect bg-black/60 rounded-2xl p-6 border border-white/10 hover:border-white/20 transition-all duration-200">
+                    <div className="flex justify-between items-start mb-4">
+                      <h3 className="text-xl font-semibold text-white">{news.Title}</h3>
+                      <span className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        news.Sentiment === 'Positive' ? 'bg-green-500/20 text-green-400' :
+                        news.Sentiment === 'Negative' ? 'bg-red-500/20 text-red-400' :
+                        'bg-blue-500/20 text-blue-400'
+                      }`}>
+                        {news.Sentiment}
+                      </span>
+                    </div>
+                    <p className="text-gray-300 mb-4">{news.Content}</p>
+                    <div className="flex justify-between items-center text-sm">
+                      <div className="flex items-center space-x-4">
+                        <span className="text-gray-400">{news.Source}</span>
+                        <span className="text-gray-400">
+                          {new Date(news.PublishedDate).toLocaleDateString()}
+                        </span>
+                      </div>
+                      <span className={`px-2 py-1 rounded text-xs font-medium ${
+                        news.ImpactLevel === 'High' ? 'bg-red-500/20 text-red-400' :
+                        news.ImpactLevel === 'Medium' ? 'bg-yellow-500/20 text-yellow-400' :
+                        'bg-green-500/20 text-green-400'
+                      }`}>
+                        {news.ImpactLevel} Impact
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        ) : (
+          // Market Trends Tab Content
+          <div className="space-y-8">
+            {/* Trend Filters */}
+            <div className="glass-effect bg-black/60 rounded-2xl p-6 border border-white/10">
+              <h2 className="text-xl font-semibold text-white mb-4">Market Trends</h2>
+              {trendsLoading ? (
+                <div className="text-gray-400">Loading trends...</div>
+              ) : trendsError ? (
+                <div className="text-red-400">{trendsError}</div>
+              ) : (
+                <div className="flex flex-wrap gap-4">
+                  {marketTrends.map((trend) => (
+                    <button
+                      key={trend.TrendID}
+                      onClick={() => handleTrendSelection(trend)}
+                      className={`px-4 py-2 rounded-lg font-medium transition-all duration-200 ${
+                        selectedTrends.some(t => t.TrendID === trend.TrendID)
+                          ? 'bg-gradient-to-r from-purple-600 via-blue-500 to-pink-500 text-white'
+                          : 'bg-white/5 text-gray-300 hover:bg-white/10'
+                      }`}
+                    >
+                      {trend.TrendName}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Stock Cards */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-8">
+              {loading ? (
+                <div className="col-span-5 text-center text-gray-400">Loading stocks...</div>
+              ) : stocks.length === 0 ? (
+                <div className="col-span-5 text-center text-gray-400">No stocks found.</div>
+              ) : (
+                stocks.map((stock) => (
+                  <div
+                    key={stock.StockID}
+                    className="relative group glass-effect bg-black/60 rounded-2xl shadow-xl p-6 flex flex-col items-center border border-white/10 backdrop-blur-md transition-all duration-200 hover:scale-105 hover:shadow-2xl overflow-hidden"
+                    onClick={() => handleStockClick(stock)}
+                  >
+                    <div className="relative z-10 flex items-center justify-center w-14 h-14 rounded-full bg-gradient-to-tr from-purple-500 via-blue-400 to-pink-400 shadow-lg mb-4">
+                      <span className="text-2xl font-bold text-white select-none">
+                        {stock.Symbol ? stock.Symbol[0] : '?'}
+                      </span>
+                    </div>
+                    <div className="relative z-10 text-lg font-semibold text-white mb-1 text-center truncate w-full">
+                      {stock.Name}
+                    </div>
+                    <span className="relative z-10 inline-block px-3 py-1 text-xs font-bold rounded-full bg-gradient-to-r from-purple-700 via-blue-600 to-pink-600 text-white shadow mb-2">
+                      {stock.Symbol}
+                    </span>
+                    <div className="relative z-10 text-3xl font-extrabold bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent mb-1">
+                      ${stock.Price}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            {/* Trend Analysis Section */}
+            {selectedStock && selectedTrends.length > 0 && (
+              <div className="mt-12">
+                <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent mb-6">
+                  Trend Analysis: {selectedStock.Name}
+                </h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {selectedTrends.map((trend) => (
+                    <div key={trend.TrendID} className="glass-effect bg-black/60 rounded-2xl p-6 border border-white/10">
+                      <h3 className="text-xl font-semibold text-white mb-4">{trend.TrendName}</h3>
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-300">Current Value</span>
+                          <span className="text-white font-medium">
+                            {allTrendsData[trend.TrendID] ? allTrendsData[trend.TrendID][allTrendsData[trend.TrendID].length - 1].Value.toFixed(2) : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-300">Trend Direction</span>
+                          <span className={`font-medium ${
+                            allTrendsData[trend.TrendID] && 
+                            allTrendsData[trend.TrendID][allTrendsData[trend.TrendID].length - 1].Value > 
+                            allTrendsData[trend.TrendID][0].Value
+                              ? 'text-green-400'
+                              : 'text-red-400'
+                          }`}>
+                            {allTrendsData[trend.TrendID] ? 
+                              (allTrendsData[trend.TrendID][allTrendsData[trend.TrendID].length - 1].Value > 
+                               allTrendsData[trend.TrendID][0].Value ? 'Upward' : 'Downward') 
+                              : 'N/A'}
+                          </span>
+                        </div>
+                        <div className="mt-4">
+                          <h4 className="text-white font-medium mb-2">Interpretation</h4>
+                          <p className="text-gray-300">
+                            {trend.TrendID === 1 && "Moving Average indicates the overall trend direction and potential support/resistance levels."}
+                            {trend.TrendID === 2 && "RSI shows whether the stock is overbought (>70) or oversold (<30)."}
+                            {trend.TrendID === 3 && "MACD helps identify trend changes and momentum."}
+                            {trend.TrendID === 4 && "Bollinger Bands show price volatility and potential breakouts."}
+                            {trend.TrendID === 5 && "Volume trend indicates the strength of price movements."}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
         )}
         {/* Modal for Stock Price History */}
         {showModal && (
@@ -588,12 +1153,27 @@ export default function Dashboard() {
                             tension: 0.3,
                             pointRadius: 0,
                           },
+                          // Add all selected trends
+                          ...selectedTrends.map((trend, index) => ({
+                            label: trend.TrendName,
+                            data: allTrendsData[trend.TrendID]?.map(item => item.Value) || [],
+                            borderColor: ['#ec4899', '#3b82f6', '#10b981', '#f59e0b', '#ef4444'][index % 5],
+                            backgroundColor: 'transparent',
+                            tension: 0.3,
+                            pointRadius: 0,
+                            borderDash: [5, 5],
+                          })),
                         ],
                       }}
                       options={{
                         responsive: true,
                         plugins: {
-                          legend: { display: false },
+                          legend: { 
+                            display: true,
+                            labels: {
+                              color: '#fff'
+                            }
+                          },
                         },
                         scales: {
                           x: {

@@ -8,3 +8,4 @@ router.post('/', watchlistController.addToWatchlist);
 router.get('/', watchlistController.getWatchlist);
 
 module.exports = router; 
+
