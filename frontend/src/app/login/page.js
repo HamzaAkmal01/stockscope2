@@ -1,25 +1,25 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { useAuth } from '@/contexts/AuthContext'
+import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function Login() {
-  const [credentials, setCredentials] = useState({ email: '', password: '' })
-  const [error, setError] = useState('')
-  const [showPassword, setShowPassword] = useState(false)
-  const router = useRouter()
-  const { login } = useAuth()
+  const [credentials, setCredentials] = useState({ Email: '', Password: '' });
+  const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const router = useRouter();
+  const { login } = useAuth();
 
   const handleSubmit = async (e) => {
-    e.preventDefault()
+    e.preventDefault();
     try {
-      await login(credentials)
-      router.push('/dashboard')
+      await login(credentials);
+      router.push('/dashboard');
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to login')
+      setError(err.response?.data?.error || 'Failed to login');
     }
-  }
+  };
 
   return (
     <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-black">
@@ -41,26 +41,26 @@ export default function Login() {
           <div className="space-y-4">
             <input
               id="email"
-              name="email"
+              name="Email"
               type="email"
               required
               autoComplete="email"
               className="w-full px-4 py-3 rounded-lg bg-black/60 border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
               placeholder="Email address"
-              value={credentials.email}
-              onChange={(e) => setCredentials({ ...credentials, email: e.target.value })}
+              value={credentials.Email}
+              onChange={(e) => setCredentials({ ...credentials, Email: e.target.value })}
             />
             <div className="relative">
               <input
                 id="password"
-                name="password"
+                name="Password"
                 type={showPassword ? 'text' : 'password'}
                 required
                 autoComplete="current-password"
                 className="w-full px-4 py-3 rounded-lg bg-black/60 border border-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition pr-12"
                 placeholder="Password"
-                value={credentials.password}
-                onChange={(e) => setCredentials({ ...credentials, password: e.target.value })}
+                value={credentials.Password}
+                onChange={(e) => setCredentials({ ...credentials, Password: e.target.value })}
               />
               <button
                 type="button"
@@ -89,7 +89,7 @@ export default function Login() {
           </button>
         </form>
         <div className="mt-6 text-center">
-          <span className="text-gray-400">Don&apos;t have an account?</span>{' '}
+          <span className="text-gray-400">Don't have an account?</span>{' '}
           <a
             href="/register"
             className="font-semibold bg-gradient-to-r from-purple-400 via-blue-300 to-pink-300 bg-clip-text text-transparent hover:underline transition"
@@ -99,5 +99,5 @@ export default function Login() {
         </div>
       </div>
     </div>
-  )
-} 
+  );
+}
