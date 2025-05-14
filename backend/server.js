@@ -1,9 +1,16 @@
 const express = require('express');
+const cors = require('cors');
 const { sequelize } = require('./config/db');
 const userRoutes = require('./routes/router');
 require('./models/models')(sequelize);
 
 const app = express();
+
+// Enable CORS for frontend requests
+app.use(cors({
+  origin: 'http://localhost:3000', // Frontend URL
+  credentials: true
+}));
 
 app.use(express.json());
 app.use('/api/users', userRoutes);

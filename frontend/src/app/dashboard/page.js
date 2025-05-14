@@ -498,6 +498,61 @@ export default function Dashboard() {
     }
   }, [activeTab, selectedNewsCategory]);
 
+  // Add this function after the existing state declarations
+  const simulatePriceFluctuation = (currentPrice) => {
+    // Generate a random percentage change between -1% and +3% (more bullish)
+    const changePercent = (Math.random() * 4 - 1) / 100;
+    const newPrice = currentPrice * (1 + changePercent);
+    return parseFloat(newPrice.toFixed(2));
+  };
+
+  // Update the useEffect for price simulation
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      const interval = setInterval(() => {
+        setStocks(prevStocks => 
+          prevStocks.map(stock => {
+            const newPrice = simulatePriceFluctuation(stock.Price);
+            // Update price history if this stock is selected
+            if (selectedStock && selectedStock.StockID === stock.StockID) {
+              setPriceHistory(prevHistory => {
+                const newHistory = [...prevHistory];
+                const today = new Date();
+                newHistory.push({
+                  Date: today.toISOString().split('T')[0],
+                  Price: newPrice
+                });
+                // Keep only the last 50 data points
+                return newHistory.slice(-50);
+              });
+            }
+            return {
+              ...stock,
+              Price: newPrice
+            };
+          })
+        );
+      }, 5000);
+
+      const timeout = setTimeout(() => {
+        clearInterval(interval);
+      }, 5 * 60 * 1000);
+
+      return () => {
+        clearInterval(interval);
+        clearTimeout(timeout);
+      };
+    }
+  }, [activeTab, selectedStock]);
+
+  // Add this function after other handler functions
+  const handleLogout = () => {
+    // Clear any stored tokens or user data
+    localStorage.removeItem('token');
+    // Redirect to login page
+    router.push('/login');
+  };
+
   return (
     <div className="relative min-h-screen flex bg-black overflow-hidden">
       {/* Blurred Gradient Shapes */}
@@ -799,6 +854,12 @@ export default function Dashboard() {
                     {userDetails?.AccountType}
                   </span>
                   <p className="text-gray-400 mt-2">Member since {new Date(userDetails?.JoinDate).toLocaleDateString()}</p>
+                  <button
+                    onClick={handleLogout}
+                    className="mt-4 px-4 py-2 rounded-lg bg-gradient-to-r from-red-600 to-pink-600 text-white font-semibold hover:from-red-700 hover:to-pink-700 transition-all duration-200 shadow-lg"
+                  >
+                    Logout
+                  </button>
                 </div>
               </div>
             </div>

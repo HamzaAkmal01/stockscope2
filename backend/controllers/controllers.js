@@ -14,10 +14,19 @@ class UserController {
 
       const hashedPassword = await bcrypt.hash(Password, 10);
 
-      const [results] = await sequelize.query(
-        `EXEC sp_RegisterUser @FirstName=:FirstName, @LastName=:LastName, @Email=:Email, 
-         @PhoneNumber=:PhoneNumber, @Password=:Password, @UserType=:UserType, 
-         @AccountBalance=:AccountBalance, @ErrorMessage=:ErrorMessage OUTPUT`,
+      // First, declare the output parameter
+      const result = await sequelize.query(
+        'DECLARE @ErrorMessage NVARCHAR(MAX); ' +
+        'EXEC sp_RegisterUser ' +
+        '@FirstName=:FirstName, ' +
+        '@LastName=:LastName, ' +
+        '@Email=:Email, ' +
+        '@PhoneNumber=:PhoneNumber, ' +
+        '@Password=:Password, ' +
+        '@UserType=:UserType, ' +
+        '@AccountBalance=:AccountBalance, ' +
+        '@ErrorMessage=@ErrorMessage OUTPUT; ' +
+        'SELECT @ErrorMessage AS ErrorMessage;',
         {
           replacements: {
             FirstName,
@@ -26,18 +35,17 @@ class UserController {
             PhoneNumber,
             Password: hashedPassword,
             UserType,
-            AccountBalance: AccountBalance || 0.00,
-            ErrorMessage: ''
+            AccountBalance: AccountBalance || 0.00
           },
           type: sequelize.QueryTypes.RAW
         }
       );
 
-      const errorMessage = results[0].ErrorMessage;
-      console.log('sp_RegisterUser response:', results, 'ErrorMessage:', errorMessage);
+      const errorMessage = result[0][0]?.ErrorMessage;
+      console.log('sp_RegisterUser response:', result, 'ErrorMessage:', errorMessage);
 
-      if (errorMessage.includes('successfully')) {
-        return res.status(201).json({ message: errorMessage });
+      if (!errorMessage || errorMessage.includes('successfully')) {
+        return res.status(201).json({ message: errorMessage || 'User registered successfully' });
       } else {
         return res.status(400).json({ error: errorMessage });
       }
